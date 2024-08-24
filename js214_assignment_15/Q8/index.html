@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Throttled Movie Search</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Roboto', sans-serif;
+        background-color: #1c1c1c;
+        color: #f0f0f0;
+      }
+
+      .navbar {
+        background-color: #262626;
+        padding: 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .navbar h1 {
+        margin: 0;
+        color: #f0a500;
+        font-size: 2.5rem;
+        text-align: center;
+      }
+
+      form {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+      }
+
+      #search {
+        padding: 15px;
+        width: 60%;
+        font-size: 18px;
+        border: none;
+        border-radius: 8px 0 0 8px;
+        outline: none;
+      }
+
+      #submit {
+        padding: 15px;
+        font-size: 18px;
+        background-color: #f0a500;
+        color: white;
+        cursor: pointer;
+        border: none;
+        border-radius: 0 8px 8px 0;
+        transition: background-color 0.3s;
+      }
+
+      #submit:hover {
+        background-color: #e08900;
+      }
+
+      .container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        padding: 40px;
+        margin-top: 20px;
+      }
+
+      .cards {
+        background-color: #333;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s, box-shadow 0.3s;
+      }
+
+      .cards:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      .cards img {
+        width: 100%;
+        height: 350px;
+        object-fit: cover;
+        border-radius: 10px;
+      }
+
+      .cards h2 {
+        font-size: 1.5rem;
+        margin: 15px 0 10px;
+        color: #f0a500;
+      }
+
+      .cards p {
+        margin: 5px 0;
+        font-size: 1rem;
+        color: #ccc;
+      }
+
+      #list {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+        list-style: none;
+      }
+
+      #list li {
+        padding: 10px 15px;
+        background-color: #f0a500;
+        margin: 0 5px;
+        border-radius: 50%;
+        color: white;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.3s;
+      }
+
+      #list li:hover {
+        background-color: #e08900;
+        transform: scale(1.1);
+      }
+
+    </style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <h1>IMDB Movies</h1>
+      <form id="form">
+        <input
+          type="search"
+          name="search"
+          id="search"
+          placeholder="Search for a movie..."
+        />
+        <input type="submit" value="Search &#128269;" id="submit" />
+      </form>
+    </nav>
+
+    <main>
+      <div class="container" id="moviesContainer"></div>
+      <ul id="list"></ul>
+    </main>
+
+    <script>
+      let currentpage = 1;
+      let itemperpage = 4;
+      let con = document.querySelector("#moviesContainer");
+      let dabba = document.querySelector("#list");
+      let data;
+
+      // Throttle function to limit the API requests
+      function throttle(fn, delay) {
+        let lastCall = 0;
+        return function(...args) {
+          const now = new Date().getTime();
+          if (now - lastCall < delay) {
+            return;
+          }
+          lastCall = now;
+          return fn(...args);
+        };
+      }
+
+      function searchfn(event) {
+        event.preventDefault();
+        let svalue = document.querySelector("#search").value.trim();
+        if (svalue) {
+          fetching(svalue);
+        } else {
+          con.innerHTML = "";
+          dabba.innerHTML = "";
+        }
+      }
+
+      const fetching = throttle(async function(svalue) {
+        try {
+          let ans = await fetch(`http://www.omdbapi.com/?apikey=8d198ce8&s=${svalue}`);
+          data = await ans.json();
+          if (data.Response === "True") {
+            display(data.Search);
+            pagination();
+          } else {
+            con.innerHTML = `<p>No results found for "${svalue}"</p>`;
+            dabba.innerHTML = "";
+          }
+        } catch (err) {
+          console.log("Error:", err);
+        }
+      }, 1000); // Throttle delay set to 1 second
+
+      function pagination() {
+        dabba.innerHTML = "";
+        let totalbox = Math.ceil(data.Search.length / itemperpage);
+        for (let i = 1; i <= totalbox; i++) {
+          let items = document.createElement("li");
+          items.innerText = i;
+          items.addEventListener("click", () => {
+            currentpage = i;
+            display();
+          });
+          dabba.append(items);
+        }
+      }
+
+      let display = () => {
+        let start = (currentpage - 1) * itemperpage;
+        let end = start + itemperpage;
+        let show = data.Search.slice(start, end);
+        con.innerHTML = "";
+        show.map(ele => {
+          let cards = document.createElement("div");
+          cards.className = "cards";
+          cards.innerHTML = `
+            <img src="${ele.Poster}" class="img">
+            <h2>${ele.Title}</h2>
+            <p>Type: ${ele.Type}</p>
+            <p>Year: ${ele.Year}</p>
+            <p>IMDB ID: ${ele.imdbID}</p>`;
+          con.append(cards);
+        });
+      }
+
+      document.querySelector("#form").addEventListener("submit", searchfn);
+    </script>
+  </body>
+</html>
